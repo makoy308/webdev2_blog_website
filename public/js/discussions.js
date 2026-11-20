@@ -14,6 +14,7 @@
   const categories = ['Action', 'Romance', 'Fantasy', 'Comedy', 'Adventure', 'Horror', 'Slice of Life'];
 
   if (staticMode) {
+    document.body.classList.add('static-read-only');
     const note = document.querySelector('#static-readonly-note');
     if (note) note.hidden = false;
     form.hidden = true;
