@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#100d18">
+  <meta name="description" content="Share your anime thoughts and join the conversation on AfterCredits.">
+  <title>Discussions — AfterCredits</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="site-header"><nav class="nav container" aria-label="Main navigation"><a class="brand" href="/"><span class="brand-mark">✦</span> after<span>credits</span></a><button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button><div class="nav-links"><a href="/">Home</a><a class="active" href="/discussions.html">Discussions</a><a href="/about.html">About</a><a class="button button-small" href="#new-post">Start a discussion <span>↗</span></a></div></nav></header>
+  <main>
+    <section class="page-hero container"><div class="eyebrow"><span class="live-dot"></span> THE COMMUNITY BOARD</div><h1>Let's talk <em>anime.</em></h1><p>Big feelings, tiny details, wild theories — this is your space to share it all.</p><div class="board-stats"><span><b id="post-total">—</b> discussions</span><i></i><span>Open to every fan</span></div></section>
+    <section class="board-section container">
+      <div class="board-toolbar"><div class="board-search"><span>⌕</span><input id="post-search" type="search" placeholder="Search anime, titles, or thoughts…" aria-label="Search discussions"><kbd>/</kbd></div><div class="filter-controls"><label class="sr-only" for="category-filter">Filter by category</label><select id="category-filter"><option value="">All genres</option><option>Action</option><option>Romance</option><option>Fantasy</option><option>Comedy</option><option>Adventure</option><option>Horror</option><option>Slice of Life</option></select><label class="sr-only" for="sort-filter">Sort discussions</label><select id="sort-filter"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></div></div>
+      <div class="board-layout">
+        <section class="discussion-list-wrap" aria-label="Discussions"><div class="list-heading"><span><b id="visible-count">0</b> POSTS</span><span class="list-live"><i></i> ALL FANS WELCOME</span></div><div id="discussion-list" class="discussion-list"><div class="loading-state">Finding the latest conversations…</div></div><div id="list-error" class="inline-error" role="status"></div></section>
+        <aside class="composer-card" id="new-post">
+          <div class="composer-head"><span class="composer-icon">✎</span><div><div class="eyebrow">YOUR TURN</div><h2>Start a discussion</h2></div></div>
+          <p>Share a thought with the community.</p>
+          <form id="post-form">
+            <label for="post-author">Your name <small>optional</small></label>
+            <input id="post-author" name="author" maxlength="60" placeholder="Anonymous">
+            <label for="post-content">Your post <span>*</span></label>
+            <textarea id="post-content" name="content" rows="6" maxlength="5000" placeholder="What's on your mind?" required></textarea>
+            <div id="form-message" class="form-message" role="status"></div>
+            <button class="button button-full" type="submit">Publish post <span>↗</span></button>
+            <div class="form-note">No account needed. Be kind, stay curious.</div>
+          </form>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="container footer-main"><a class="brand" href="/"><span class="brand-mark">✦</span> after<span>credits</span></a><p>For the stories that stay with us.</p><div class="footer-links"><a href="/">Home</a><a href="/discussions.html">Discussions</a><a href="/about.html">Guidelines</a></div></div><div class="container footer-bottom"><span>© 2026 AfterCredits Community</span><span>Made with ✦ for anime fans, everywhere.</span></div></footer>
+  <script src="/js/main.js" defer></script><script src="/js/discussions.js" defer></script>
+</body>
+</html>
