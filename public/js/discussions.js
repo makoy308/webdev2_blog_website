@@ -11,14 +11,11 @@
   const visibleCount = document.querySelector('#visible-count');
   const staticMode = window.APP_CONFIG?.staticMode === true;
   let posts = [];
+  let staticComments = [];
   const categories = ['Action', 'Romance', 'Fantasy', 'Comedy', 'Adventure', 'Horror', 'Slice of Life'];
 
-  if (staticMode) {
-    document.body.classList.add('static-read-only');
-    const note = document.querySelector('#static-readonly-note');
-    if (note) note.hidden = false;
-    form.hidden = true;
-  }
+  const storageNote = document.querySelector('#browser-storage-note');
+  if (storageNote) storageNote.hidden = !staticMode;
 
   const createElement = (tag, className, text) => {
     const element = document.createElement(tag);
@@ -37,7 +34,7 @@
   function getFilteredPosts() {
     const query = search.value.trim().toLocaleLowerCase();
     return posts.filter((post) => {
-      const text = `${post.animeTitle} ${post.title} ${post.content} ${post.author}`.toLocaleLowerCase();
+      const text = `${post.animeTitle || ''} ${post.title || ''} ${post.content} ${post.author}`.toLocaleLowerCase();
       return (!query || text.includes(query)) && (!category.value || post.category === category.value);
     }).sort((a, b) => {
       const difference = new Date(a.createdAt) - new Date(b.createdAt);
@@ -56,6 +53,7 @@
 
     visible.forEach((post) => {
       const card = createElement('article', 'discussion-card');
+      card.dataset.postId = post.id;
       if (!post.simple) {
         const top = createElement('div', 'discussion-topline');
         const genre = createElement('span', 'category-dot', post.category);
@@ -80,7 +78,7 @@
       const bottom = createElement('div', 'discussion-bottomline');
       const byline = createElement('span', 'post-byline');
       byline.append(createElement('span', 'tiny-avatar', (post.author || 'A').charAt(0).toUpperCase()), createElement('span', '', post.author), createElement('span', '', '·'), createElement('span', '', window.formatRelativeTime(post.createdAt)));
-      const conversationLabel = staticMode ? 'View comments →' : 'View & reply →';
+      const conversationLabel = 'View & reply →';
       const toggle = createElement('button', 'comment-toggle', `${post.commentCount || 0} comments  ·  ${conversationLabel}`);
       toggle.type = 'button';
       bottom.append(byline, toggle);
@@ -96,7 +94,6 @@
       panel.append(panelTitle, entries);
       const commentForm = document.createElement('form');
       commentForm.className = 'comment-form';
-      commentForm.hidden = staticMode;
       const commentInput = document.createElement('textarea');
       commentInput.name = 'content';
       commentInput.rows = 2;
@@ -117,9 +114,6 @@
       feedback.setAttribute('role', 'status');
       commentForm.append(commentInput, formRow, feedback);
       panel.append(commentForm);
-      if (staticMode) {
-        panel.append(createElement('p', 'form-note', 'Comments are read-only on this GitHub Pages version.'));
-      }
       card.append(panel);
 
       let commentsLoaded = false;
@@ -131,7 +125,7 @@
         if (panel.hidden || commentsLoaded) return;
         try {
           const comments = staticMode
-            ? (await request('data/comments.json')).filter((comment) => comment.postId === post.id)
+            ? [...staticComments, ...window.discussionStorage.readComments()].filter((comment) => comment.postId === post.id)
             : await request(`/api/posts/${encodeURIComponent(post.id)}/comments`);
           renderComments(entries, comments);
           commentsLoaded = true;
@@ -146,11 +140,26 @@
         feedback.className = 'comment-feedback';
         submit.disabled = true;
         try {
-          const comment = await request(`/api/posts/${encodeURIComponent(post.id)}/comments`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: commentInput.value, author: nameInput.value })
-          });
+          let comment;
+          if (staticMode) {
+            const content = commentInput.value.trim();
+            if (!content) throw new Error('Please write a comment before posting.');
+            comment = {
+              id: window.discussionStorage.createId(),
+              postId: post.id,
+              content,
+              author: nameInput.value.trim() || 'Anonymous',
+              createdAt: new Date().toISOString()
+            };
+            const savedComments = window.discussionStorage.readComments();
+            window.discussionStorage.writeComments([...savedComments, comment]);
+          } else {
+            comment = await request(`/api/posts/${encodeURIComponent(post.id)}/comments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content: commentInput.value, author: nameInput.value })
+            });
+          }
           if (!commentsLoaded) {
             entries.replaceChildren();
             commentsLoaded = true;
@@ -162,7 +171,7 @@
           post.commentCount = (post.commentCount || 0) + 1;
           toggle.textContent = 'Hide conversation ↑';
           panel.hidden = false;
-          feedback.textContent = 'Your comment is live.';
+          feedback.textContent = staticMode ? 'Saved in this browser only.' : 'Your comment is live.';
           feedback.classList.add('success');
         } catch (error) {
           feedback.textContent = error.message;
@@ -200,9 +209,11 @@
           request('data/posts.json'),
           request('data/comments.json')
         ]);
-        posts = staticPosts.map((post) => ({
+        staticComments = comments;
+        const savedComments = window.discussionStorage.readComments();
+        posts = [...staticPosts, ...window.discussionStorage.readPosts()].map((post) => ({
           ...post,
-          commentCount: comments.filter((comment) => comment.postId === post.id).length
+          commentCount: [...staticComments, ...savedComments].filter((comment) => comment.postId === post.id).length
         }));
       } else {
         posts = await request('/api/posts');
@@ -227,21 +238,39 @@
     const submit = form.querySelector('button[type="submit"]');
     submit.disabled = true;
     const values = new FormData(form);
-    const post = {
-      author: values.get('author'),
-      content: values.get('content'),
-      simple: true
-    };
     try {
-      await request('/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(post)
-      });
+      const content = String(values.get('content') || '').trim();
+      if (!content) throw new Error('Write something before publishing.');
+      if (staticMode) {
+        const post = {
+          id: window.discussionStorage.createId(),
+          author: String(values.get('author') || '').trim() || 'Anonymous',
+          content,
+          simple: true,
+          createdAt: new Date().toISOString()
+        };
+        const savedPosts = window.discussionStorage.readPosts();
+        window.discussionStorage.writePosts([...savedPosts, post]);
+        posts.push(post);
+        postsTotal.textContent = String(posts.length);
+        renderPosts();
+      } else {
+        await request('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            author: values.get('author'),
+            content,
+            simple: true
+          })
+        });
+        await loadPosts();
+      }
       form.reset();
-      formMessage.textContent = 'Your discussion is live — thanks for sharing!';
+      formMessage.textContent = staticMode
+        ? 'Saved in this browser only — thanks for sharing!'
+        : 'Your discussion is live — thanks for sharing!';
       formMessage.classList.add('success');
-      await loadPosts();
       document.querySelector('.discussion-list-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
       formMessage.textContent = error.message;
@@ -255,8 +284,7 @@
   const initialPost = new URLSearchParams(window.location.search).get('post');
   loadPosts().then(() => {
     if (!initialPost) return;
-    const post = posts.find((item) => item.id === initialPost);
-    const card = [...list.querySelectorAll('.discussion-card')].find((item) => item.querySelector('h3')?.textContent === post?.title);
+    const card = [...list.querySelectorAll('.discussion-card')].find((item) => item.dataset.postId === initialPost);
     if (card) {
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       card.querySelector('.comment-toggle').click();

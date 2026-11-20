@@ -11,13 +11,15 @@
 
   const recentPosts = document.querySelector('#recent-posts');
   if (recentPosts) {
-    const postsUrl = window.APP_CONFIG?.staticMode ? 'data/posts.json' : '/api/posts';
+    const staticMode = window.APP_CONFIG?.staticMode === true;
+    const postsUrl = staticMode ? 'data/posts.json' : '/api/posts';
     fetch(postsUrl)
       .then((response) => {
         if (!response.ok) throw new Error('Could not load discussions.');
         return response.json();
       })
       .then((posts) => {
+        if (staticMode) posts = [...posts, ...window.discussionStorage.readPosts()];
         const latest = posts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4);
         recentPosts.replaceChildren();
         if (!latest.length) {
@@ -34,9 +36,9 @@
           const copy = document.createElement('span');
           copy.className = 'recent-copy';
           const title = document.createElement('strong');
-          title.textContent = post.title;
+          title.textContent = post.title || post.content.slice(0, 80);
           const detail = document.createElement('span');
-          detail.textContent = `${post.animeTitle} · ${post.author}`;
+          detail.textContent = [post.animeTitle, post.author].filter(Boolean).join(' · ');
           copy.append(title, detail);
           const time = document.createElement('span');
           time.className = 'recent-time';
@@ -45,10 +47,10 @@
           recentPosts.append(link);
         });
       })
-      .catch(() => {
+      .catch((loadError) => {
         recentPosts.replaceChildren();
-        const error = document.querySelector('#home-error');
-        if (error) error.textContent = 'The latest discussions could not be loaded. Please refresh to try again.';
+        const errorBox = document.querySelector('#home-error');
+        if (errorBox) errorBox.textContent = loadError.message || 'The latest discussions could not be loaded. Please refresh to try again.';
       });
   }
 
