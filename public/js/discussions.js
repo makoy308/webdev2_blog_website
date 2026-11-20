@@ -9,8 +9,15 @@
   const formMessage = document.querySelector('#form-message');
   const postsTotal = document.querySelector('#post-total');
   const visibleCount = document.querySelector('#visible-count');
+  const staticMode = window.APP_CONFIG?.staticMode === true;
   let posts = [];
   const categories = ['Action', 'Romance', 'Fantasy', 'Comedy', 'Adventure', 'Horror', 'Slice of Life'];
+
+  if (staticMode) {
+    const note = document.querySelector('#static-readonly-note');
+    if (note) note.hidden = false;
+    form.hidden = true;
+  }
 
   const createElement = (tag, className, text) => {
     const element = document.createElement(tag);
@@ -72,7 +79,8 @@
       const bottom = createElement('div', 'discussion-bottomline');
       const byline = createElement('span', 'post-byline');
       byline.append(createElement('span', 'tiny-avatar', (post.author || 'A').charAt(0).toUpperCase()), createElement('span', '', post.author), createElement('span', '', '·'), createElement('span', '', window.formatRelativeTime(post.createdAt)));
-      const toggle = createElement('button', 'comment-toggle', `${post.commentCount || 0} comments  ·  View & reply →`);
+      const conversationLabel = staticMode ? 'View comments →' : 'View & reply →';
+      const toggle = createElement('button', 'comment-toggle', `${post.commentCount || 0} comments  ·  ${conversationLabel}`);
       toggle.type = 'button';
       bottom.append(byline, toggle);
       if (title) card.append(title);
@@ -87,6 +95,7 @@
       panel.append(panelTitle, entries);
       const commentForm = document.createElement('form');
       commentForm.className = 'comment-form';
+      commentForm.hidden = staticMode;
       const commentInput = document.createElement('textarea');
       commentInput.name = 'content';
       commentInput.rows = 2;
@@ -107,15 +116,22 @@
       feedback.setAttribute('role', 'status');
       commentForm.append(commentInput, formRow, feedback);
       panel.append(commentForm);
+      if (staticMode) {
+        panel.append(createElement('p', 'form-note', 'Comments are read-only on this GitHub Pages version.'));
+      }
       card.append(panel);
 
       let commentsLoaded = false;
       toggle.addEventListener('click', async () => {
         panel.hidden = !panel.hidden;
-        toggle.textContent = panel.hidden ? `${post.commentCount || 0} comments  ·  View & reply →` : 'Hide conversation ↑';
+        toggle.textContent = panel.hidden
+          ? `${post.commentCount || 0} comments  ·  ${conversationLabel}`
+          : 'Hide conversation ↑';
         if (panel.hidden || commentsLoaded) return;
         try {
-          const comments = await request(`/api/posts/${encodeURIComponent(post.id)}/comments`);
+          const comments = staticMode
+            ? (await request('data/comments.json')).filter((comment) => comment.postId === post.id)
+            : await request(`/api/posts/${encodeURIComponent(post.id)}/comments`);
           renderComments(entries, comments);
           commentsLoaded = true;
         } catch (error) {
@@ -178,7 +194,18 @@
   async function loadPosts() {
     const errorBox = document.querySelector('#list-error');
     try {
-      posts = await request('/api/posts');
+      if (staticMode) {
+        const [staticPosts, comments] = await Promise.all([
+          request('data/posts.json'),
+          request('data/comments.json')
+        ]);
+        posts = staticPosts.map((post) => ({
+          ...post,
+          commentCount: comments.filter((comment) => comment.postId === post.id).length
+        }));
+      } else {
+        posts = await request('/api/posts');
+      }
       postsTotal.textContent = String(posts.length);
       renderPosts();
       errorBox.textContent = '';

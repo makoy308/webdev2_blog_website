@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "build:pages": "node scripts/build-pages.js"
   },
   "dependencies": {
     "express": "^4.21.2"

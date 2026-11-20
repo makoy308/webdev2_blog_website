@@ -11,7 +11,8 @@
 
   const recentPosts = document.querySelector('#recent-posts');
   if (recentPosts) {
-    fetch('/api/posts')
+    const postsUrl = window.APP_CONFIG?.staticMode ? 'data/posts.json' : '/api/posts';
+    fetch(postsUrl)
       .then((response) => {
         if (!response.ok) throw new Error('Could not load discussions.');
         return response.json();
@@ -26,7 +27,7 @@
         latest.forEach((post) => {
           const link = document.createElement('a');
           link.className = 'recent-post';
-          link.href = `/discussions.html?post=${encodeURIComponent(post.id)}`;
+          link.href = `discussions.html?post=${encodeURIComponent(post.id)}`;
           const mark = document.createElement('span');
           mark.className = 'recent-mark';
           mark.textContent = '✦';
